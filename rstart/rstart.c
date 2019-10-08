@@ -28,7 +28,7 @@ void printVersion() {
   printf("Version %s\n", VERSION);
 }
 
-int rpc(char **args) {
+int rstart(char **args) {
   // Fork and then call ssh
   switch((fork())) {
     case 0: // In child
@@ -130,9 +130,9 @@ int main(int argc, char **argv) {
         }
       }
     }
-    if (rpc(sshArgs)) {
+    if (rstart(sshArgs)) {
       free(sshArgs);
-      fprintf(stderr, "Error calling rpc\n");
+      fprintf(stderr, "Error calling rstart\n");
       return 1;
     }
   }
