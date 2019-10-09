@@ -39,25 +39,15 @@ int processArgs(int argc, char **argv, char **hostFile, int *nNodes, char ***arg
   while ((c = getopt(argc, argv, "H:hn:v")) != -1) {
     switch (c) {
       case 'H':
-        if (optarg) {
-          *hostFile = optarg;
-        } else {
-          printHelp();
-          return 0;
-        }
+        *hostFile = optarg;
         break;
       case 'h':
         printHelp();
         return 0;
       case 'n':
-        if (optarg) {
-          *nNodes = atoi(optarg);
-          if (*nNodes == 0) {
-            printf("Error: n must be > 0\n");
-            return 0;
-          }
-        } else {
-          printHelp();
+        *nNodes = atoi(optarg);
+        if (*nNodes == 0) {
+          printf("Error: n must be > 0\n");
           return 0;
         }
         break;
