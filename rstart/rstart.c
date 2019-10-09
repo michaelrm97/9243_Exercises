@@ -28,35 +28,19 @@ void printVersion() {
   printf("Version %s\n", VERSION);
 }
 
-void processArgs(char **hostFile, int *nNodes) {
-
-}
-
-int rstart(char **args) {
-  // Fork and then call ssh
-  switch((fork())) {
-    case 0: // In child
-      execv("/usr/bin/ssh", args);
-      exit(1);
-    case -1: // Failure
-      perror("Fork failed");
-      return -1;
-    default: // In parent
-      return 0;
-  }
-}
-
-int main(int argc, char **argv) {
-
-  char *hostFile = "hosts";
-  int nNodes = 1;
-
+/*
+ * Processes arguments from commend line
+ * Returns number of arguments once all options are removed
+ * 0 if there is an error when processing arguments or if the program
+ * is not to continue
+ */
+int processArgs(int argc, char **argv, char **hostFile, int *nNodes, char ***args) {
   int c;
   while ((c = getopt(argc, argv, "H:hn:v")) != -1) {
     switch (c) {
       case 'H':
         if (optarg) {
-          hostFile = optarg;
+          *hostFile = optarg;
         } else {
           printHelp();
           return 0;
@@ -67,8 +51,8 @@ int main(int argc, char **argv) {
         return 0;
       case 'n':
         if (optarg) {
-          nNodes = atoi(optarg);
-          if (nNodes == 0) {
+          *nNodes = atoi(optarg);
+          if (*nNodes == 0) {
             printf("Error: n must be > 0\n");
             return 0;
           }
@@ -91,48 +75,79 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  char **args = &argv[optind];
-  // Prepare 2d array of args
-  int numArgs = argc - optind + 2; // Executable + args + ssh + hostname
-  char** sshArgs = calloc(numArgs + 1, sizeof(char *)); // Also need NULL at end
+  *args = &argv[optind];
+  return argc - optind;
+}
+
+char **prepareSSHArgs(int numArgs, char **args) {
+  // Prepare 2d char array of args
+  char** sshArgs = calloc(numArgs + 3, sizeof(char *)); // Need ssh + hostname + NULL
   if (sshArgs == NULL) {
     fprintf(stderr, "Error: Out of memory");
-    return 1;
+    return NULL;
   }
 
   sshArgs[0] = "/usr/bin/ssh";
+  memcpy(sshArgs + 2, args, numArgs * sizeof(char *));
+  return sshArgs;
+}
 
-  for (int i = 0; i < argc - optind; i++) {
-    sshArgs[i + 2] = args[i];
-  }
-
-  FILE *f = fopen(hostFile, "r");
-  char *localhost = "localhost";;
-
-  for (int i = 0; i < nNodes; i++) {
-    char host[MAX_HOSTNAME_LEN + 1];
-    if (f == NULL) {
-      // Use localhost
-      sshArgs[1] = localhost;
+char *getNextHost(FILE **f, char *host) {
+  if (*f == NULL) {
+    // Use localhost
+    return "localhost";
+  } else {
+    if (fgets(host, MAX_HOSTNAME_LEN + 1, *f)) {
+      int len = strlen(host);
+      if (host[len - 1] == '\n') host[len - 1] = '\0';
+      return host;
     } else {
-      if (fgets(host, MAX_HOSTNAME_LEN + 1, f)) {
+      // seek back to start
+      fseek(*f, 0, SEEK_SET);
+      if (fgets(host, MAX_HOSTNAME_LEN + 1, *f)) {
         int len = strlen(host);
         if (host[len - 1] == '\n') host[len - 1] = '\0';
-        sshArgs[1] = host;
+        return host;
       } else {
-        // seek back to start
-        fseek(f, 0, SEEK_SET);
-        if (fgets(host, MAX_HOSTNAME_LEN + 1, f)) {
-          int len = strlen(host);
-          if (host[len - 1] == '\n') host[len - 1] = '\0';
-          sshArgs[1] = host;
-        } else {
-          // Close f and use localhost
-          fclose(f);
-          sshArgs[1] = localhost;
-        }
+        // Close f and use localhost
+        fclose(*f);
+        *f = NULL;
+        return "localhost";
       }
     }
+  }
+}
+
+int rstart(char **args) {
+  // Fork and then call ssh
+  switch((fork())) {
+    case 0: // In child
+      execv("/usr/bin/ssh", args);
+      exit(1);
+    case -1: // Failure
+      perror("Fork failed");
+      return -1;
+    default: // In parent
+      return 0;
+  }
+}
+
+int main(int argc, char **argv) {
+  char *hostFile = "hosts";
+  int nNodes = 1;
+  char **args;
+  
+  int numArgs = processArgs(argc, argv, &hostFile, &nNodes, &args);
+  if (numArgs == 0) return 0;
+  
+  char **sshArgs = prepareSSHArgs(numArgs, args);
+  if (sshArgs == NULL) return 0;
+
+  FILE *f = fopen(hostFile, "r");
+  char host[MAX_HOSTNAME_LEN + 1];
+
+  for (int i = 0; i < nNodes; i++) {
+    sshArgs[1] = getNextHost(&f, host);
     if (rstart(sshArgs)) {
       free(sshArgs);
       fprintf(stderr, "Error calling rstart\n");
@@ -145,6 +160,5 @@ int main(int argc, char **argv) {
   }
 
   free(sshArgs);
-
   return 0;
 }
