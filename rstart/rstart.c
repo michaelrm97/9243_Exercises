@@ -28,6 +28,10 @@ void printVersion() {
   printf("Version %s\n", VERSION);
 }
 
+void processArgs(char **hostFile, int *nNodes) {
+
+}
+
 int rstart(char **args) {
   // Fork and then call ssh
   switch((fork())) {
@@ -48,7 +52,6 @@ int main(int argc, char **argv) {
   int nNodes = 1;
 
   int c;
-
   while ((c = getopt(argc, argv, "H:hn:v")) != -1) {
     switch (c) {
       case 'H':
@@ -66,7 +69,7 @@ int main(int argc, char **argv) {
         if (optarg) {
           nNodes = atoi(optarg);
           if (nNodes == 0) {
-            printHelp();
+            printf("Error: n must be > 0\n");
             return 0;
           }
         } else {
