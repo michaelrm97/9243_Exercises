@@ -1,5 +1,5 @@
 -module(benchmark_cs).
--export([benchmark/2, run_benchmark/2, query_keys/1, client/2]).
+-export([benchmark_avg/3, run_benchmark/2, query_keys/1, client/2]).
 
 fill_with_keys(0) ->
   ok;
@@ -36,8 +36,15 @@ run_benchmark(N, C) ->
   fill_with_keys(N),
   spawn_clients(N, C, self()),
   wait_for_clients(C),
-  dbclient:stop(),
-  io:format("Done!\n").
+  dbclient:stop().
 
 benchmark(N, C) ->
-  spawn(?MODULE, run_benchmark, [N, C]).
+  {T, _Result} = timer:tc(?MODULE, run_benchmark, [N, C]),
+  T / 1000000.
+
+benchmark(_, _, 0) -> [];
+benchmark(N, C, R) ->
+  [benchmark(N, C)|benchmark(N, C, R-1)].
+
+benchmark_avg(N, C, R) ->
+  lists:sum(benchmark(N, C, R)) / R.
