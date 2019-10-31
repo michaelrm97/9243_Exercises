@@ -4,23 +4,23 @@
 insert(Key, Value) ->
   server ! {self(), insert, Key, Value},
   receive
-    {_From, Reply} -> Reply
+    Reply -> Reply
   end.
 
 delete(Key) ->
   server ! {self(), delete, Key},
   receive
-    {_From, Reply} -> Reply
+    Reply -> Reply
   end.
 
 lookup(Key) ->
   server ! {self(), lookup, Key},
   receive
-    {_From, Reply} -> Reply
+    Reply -> Reply
   end.
 
 stop() ->
   server ! {self(), stop},
   receive
-    {_From, Reply} -> Reply
+    Reply -> Reply
   end.

@@ -1,0 +1,2 @@
+-module(ringclient).
+-export([insert/3, lookup/2, stop/1])

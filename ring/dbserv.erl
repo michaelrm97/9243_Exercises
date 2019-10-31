@@ -8,23 +8,23 @@ start() ->
 loop(State) ->
   receive
     {From, insert, Key, Value} ->
-      From ! {self(), ok},
+      From ! ok,
       NewState = dict:store(Key, Value, State),
       loop(NewState);
     {From, delete, Key} ->
-      From ! {self(), ok},
+      From ! ok,
       NewState = dict:erase(Key, State),
       loop(NewState);
     {From, lookup, Key} ->
       case dict:find(Key, State) of
         {ok, Value} ->
-          From ! {self(), Value};
+          From ! Value;
         error ->
-          From ! {self(), "Not Found"}
+          From ! "Not Found"
       end,
       loop(State);
     {From, stop} ->
-      From ! {self(), ok}
+      From ! ok
   end.
 
 
