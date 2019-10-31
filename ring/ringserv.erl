@@ -4,7 +4,7 @@
 -record(state, {id, nodes, next=none, items=dict:new()}).
 
 ring(N) ->
-  Pids = start_ring(N -1, N),
+  Pids = start_ring(N, N),
   join_ring(hd(Pids), Pids),
   wait_for_replies(N),
   Pids.
@@ -22,7 +22,7 @@ join_ring(First, [Curr|[Next|Rest]]) ->
 join_ring(First, [Curr]) ->
   Curr ! {self(), next, First}.
 
-start_ring(0, N) -> [start(0, N)];
+start_ring(0, _) -> [];
 start_ring(Id, N) ->
   [start(Id, N) | start_ring(Id - 1, N)].
 
@@ -37,15 +37,14 @@ loop(State) ->
       loop(State#state{next=Pid});
     {From, insert, Key, Value} ->
       % Check if this node is meant to handle this
-      Node = erlang:phash(Key, State#state.nodes - 1),
-      % io:format("Node = ~B~n", [Node]),
+      Node = erlang:phash(Key, State#state.nodes),
       NewState = 
       if Node =:= State#state.id -> 
-        State#state.next ! {From, insert, Key, Value},
-        State;
+        From ! ok,
+        State#state{items=dict:store(Key, Value, State#state.items)};
         true -> 
-          From ! ok,
-          State#state{items=dict:store(Key, Value, State#state.items)}
+          State#state.next ! {From, insert, Key, Value},
+          State
       end,
       loop(NewState);
     {From, delete, Key} ->
@@ -53,24 +52,24 @@ loop(State) ->
       Node = erlang:phash(Key, State#state.nodes),
       NewState = 
       if Node =:= State#state.id -> 
-        State#state.next ! {From, delete, Key},
-        State;
+        From ! ok,
+        State#state{items=dict:erase(Key, State#state.items)};
         true -> 
-          From ! ok,
-          State#state{items=dict:erase(Key, State#state.items)}
+          State#state.next ! {From, delete, Key},
+          State
       end,
       loop(NewState);
     {From, lookup, Key} ->
       % Check if this node is meant to handle this
       Node = erlang:phash(Key, State#state.nodes),
       if Node =:= State#state.id -> 
-        State#state.next ! {From, lookup, Key};
-        true -> case dict:find(Key, State#state.items) of
-          {ok, Value} ->
-            From ! Value;
-          error ->
-            From ! "Not Found"
-        end
+          case dict:find(Key, State#state.items) of
+            {ok, Value} ->
+              From ! Value;
+            error ->
+              From ! "Not Found"
+          end;
+        true -> State#state.next ! {From, lookup, Key}
       end,
       loop(State);
     {From, stop} ->
