@@ -1,13 +1,21 @@
 -module(ringserv).
--export([ring/1, loop/1]).
+-export([start_ring/1, stop_ring/1, loop/1]).
 
 -record(state, {id, nodes, next=none, items=dict:new()}).
 
-ring(N) ->
+start_ring(N) ->
   Pids = start_ring(N, N),
   join_ring(hd(Pids), Pids),
   wait_for_replies(N),
   Pids.
+
+stop_ring([]) -> ok;
+stop_ring([Server|Rest]) ->
+  Server ! {self(), stop},
+  receive
+    ok -> ok
+  end,
+  stop_ring(Rest).
 
 wait_for_replies(0) -> ok;
 wait_for_replies(N) ->
@@ -73,6 +81,5 @@ loop(State) ->
       end,
       loop(State);
     {From, stop} ->
-      io:format("stop~n"),
       From ! ok
   end.
