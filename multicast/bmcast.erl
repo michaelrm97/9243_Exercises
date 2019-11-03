@@ -14,7 +14,7 @@ minit(_NodeID, _NodePid, _Group) -> ok.
 %   Group - a list of Pids of all the nodes in the multicast group
 %   Msg - the message to send
 msend(Group, Msg) ->
-  lists:foreach(fun(Pid) -> rsend:rsend(Pid, Msg) end, Group).
+  lists:foreach(fun(Pid) -> rsend:rsend(self(), Pid, Msg) end, Group).
 
 %   wait to receive a multicast message.  This will return a tuple
 %   {From, Msg} with the next deliverable message that was multicast to

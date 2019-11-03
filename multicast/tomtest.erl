@@ -1,10 +1,10 @@
 -module(tomtest).
--export([test/1, start/1]).
+-export([test/1]).
 
 test(N) ->
     % Spawn N processes and call do_test on them all
     IDs = lists:seq(1, N),
-    Group = lists:map(fun(Id) -> spawn(?MODULE, start, [Id]) end, IDs),
+    Group = lists:map(fun(Id) -> spawn(fun() -> start(Id) end) end, IDs),
     lists:foreach(fun(Pid) -> Pid ! Group end, Group).
 
 start(Id) ->
